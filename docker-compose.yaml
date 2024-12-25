@@ -1,0 +1,78 @@
+services:
+  postgresql:
+    container_name: ms_pg_sql
+    image: postgres:latest  # Use the latest version of PostgreSQL
+    environment:
+      POSTGRES_USER: oussbad
+      POSTGRES_PASSWORD: oussbad
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  pgadmin:
+    container_name: ms_pgadmin
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  code-server:
+    image: lscr.io/linuxserver/code-server
+    container_name: code-server
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - PASSWORD=12345678
+    networks:
+      - microservices-net  
+    volumes:
+      - vscode:/config
+      - ./app:/config/workspace
+    ports:
+      - 8443:8443
+    restart: unless-stopped
+
+  nodejs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nodejs-container
+    ports:
+      - 3000:3000  # Utilisation du port 5050 sur l'hôte pour accéder à Node.js
+    volumes:
+      - ./app:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - postgresql
+    environment:
+      - DB_HOST=postgresql
+      - DB_USER=oussbad
+      - DB_PASSWORD=oussbad
+      - DB_NAME=library
+      - DB_PORT=5432 
+    networks:
+      - microservices-net 
+    
+
+networks:
+  microservices-net:
+    driver: bridge
+
+volumes:
+  postgres:
+  pgadmin:
+  vscode:
